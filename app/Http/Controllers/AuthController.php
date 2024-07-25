@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class AuthController extends BaseApiController
 {
@@ -13,17 +14,20 @@ class AuthController extends BaseApiController
     {
         $rules = [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => [
+            'required',
+            'string',
+            'email',
+            'max:255',
+            Rule::unique('users')->whereNull('deleted_at'),
+        ],
             'password' => 'required|string|min:8', 
         ];
-        
+     
         $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
-            if ($validator->errors()->has('email')) {
-                return response()->json(['errors' => ['email' => ['该邮箱已被使用']]], 422);
-            }
-            return response()->json(['errors' => $validator->errors()], 422);
+            return $this->errorResponse($validator->errors());
         }
 
         $user = User::create([
@@ -32,7 +36,7 @@ class AuthController extends BaseApiController
             'password' => Hash::make($request->password),
         ]);
 
-        return response()->json(['message' => '注册成功'], 201);
+        return $this->successResponse($user);
     }
 
     public function login(Request $request)
